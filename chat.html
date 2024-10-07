@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WebLLM Chatbot</title>
+  <style>
+    /* Reset and basic styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body, html {
+      height: 100%;
+      font-family: Arial, sans-serif;
+    }
+    /* Particle.js background container */
+    #particles-js {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      background-color: #101a32; /* Background color remains the same */
+      z-index: -1;
+      top: 0;
+      left: 0;
+    }
+    /* Chat container */
+    #chat-container {
+      position: relative;
+      max-width: 600px;
+      height: 80%;
+      margin: 3% auto;
+      background-color: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      border-radius: 15px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 1;
+    }
+    /* Header */
+    #header {
+      background-color: #1075a6; /* Updated foreground color */
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
+    }
+    /* Messages area */
+    #messages {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      background-color: transparent;
+    }
+    .message {
+      display: flex;
+      margin: 10px 0;
+    }
+    .message.user {
+      justify-content: flex-end;
+    }
+    .message.assistant {
+      justify-content: flex-start;
+    }
+    .message-content {
+      max-width: 70%;
+      padding: 15px 20px;
+      border-radius: 20px;
+      font-size: 16px;
+      line-height: 1.5;
+      position: relative;
+    }
+    .message.user .message-content {
+      background-color: #1075a6; /* Updated foreground color */
+      color: #fff;
+      border-bottom-right-radius: 0;
+    }
+    .message.assistant .message-content {
+      background-color: #e1e5ea;
+      color: #333;
+      border-bottom-left-radius: 0;
+    }
+    /* Input form */
+    #input-form {
+      display: flex;
+      border-top: 1px solid #ccc;
+      background-color: rgba(255, 255, 255, 0.9);
+    }
+    #user-input {
+      flex: 1;
+      padding: 15px;
+      border: none;
+      font-size: 16px;
+      background-color: transparent;
+      outline: none;
+    }
+    #send-button {
+      padding: 0 20px;
+      background-color: #1075a6; /* Updated foreground color */
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-size: 18px;
+    }
+    #send-button:hover {
+      background-color: #0d628c; /* Adjusted hover color */
+    }
+    /* Loading indicator */
+    #loading {
+      text-align: center;
+      padding: 10px;
+      font-size: 14px;
+      color: #666;
+      background-color: rgba(255, 255, 255, 0.9);
+    }
+    /* Error log section */
+    #error-log {
+      text-align: center;
+      padding: 10px;
+      font-size: 14px;
+      color: red;
+      background-color: rgba(255, 255, 255, 0.9);
+      display: none; /* Initially hidden */
+    }
+    /* Network data display */
+    #network-data {
+      font-size: 12px;
+      color: #333;
+      padding: 10px;
+      background-color: rgba(240, 240, 240, 0.9);
+      overflow-y: auto;
+      max-height: 150px;
+    }
+    /* Scrollbar styling */
+    #messages::-webkit-scrollbar,
+    #network-data::-webkit-scrollbar {
+      width: 8px;
+    }
+    #messages::-webkit-scrollbar-thumb,
+    #network-data::-webkit-scrollbar-thumb {
+      background-color: rgba(204, 204, 204, 0.7);
+      border-radius: 4px;
+    }
+    #messages::-webkit-scrollbar-track,
+    #network-data::-webkit-scrollbar-track {
+      background-color: transparent;
+    }
+    /* Responsive design */
+    @media (max-width: 600px) {
+      #chat-container {
+        width: 95%;
+        height: 90%;
+        margin: 5% auto;
+      }
+      #header {
+        font-size: 22px;
+        padding: 15px;
+      }
+      .message-content {
+        font-size: 14px;
+        padding: 10px 15px;
+      }
+      #send-button {
+        font-size: 16px;
+        padding: 0 15px;
+      }
+      #network-data {
+        font-size: 11px;
+        max-height: 100px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Particle.js container -->
+  <div id="particles-js"></div>
+
+  <div id="chat-container">
+    <div id="header">WebLLM Chatbot</div>
+    <div id="messages"></div>
+    <div id="loading"></div>
+    <div id="error-log"></div> <!-- Error log section -->
+    <!-- Network data display -->
+    <div id="network-data"></div>
+    <form id="input-form">
+      <input type="text" id="user-input" placeholder="Type your message here..." autocomplete="off" required />
+      <button type="submit" id="send-button">Send</button>
+    </form>
+  </div>
+
+  <!-- Include Particle.js library -->
+  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+
+  <script type="module">
+    import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm";
+
+    const selectedModel = "Llama-3.1-8B-Instruct-q4f32_1-MLC";
+    const messagesDiv = document.getElementById('messages');
+    const userInput = document.getElementById('user-input');
+    const inputForm = document.getElementById('input-form');
+    const loadingDiv = document.getElementById('loading');
+    const errorLogDiv = document.getElementById('error-log'); // Error log div
+    const networkDataDiv = document.getElementById('network-data');
+
+    let engine = null;
+    let conversation = [
+      { role: "system", content: "You are a helpful assistant." },
+    ];
+
+    let modelLoadStartTime = null;
+
+    // Variables to track overall progress
+    let totalFilesToDownload = 0;
+    let totalBytesToDownload = 0;
+    let totalBytesDownloaded = 0;
+
+    // Array to store network request data
+    const networkRequests = [];
+
+    // Override the global fetch function
+    const originalFetch = window.fetch;
+    window.fetch = async function(input, init) {
+      const response = await originalFetch(input, init);
+
+      // Check if the request is for model files
+      if (typeof input === 'string' && input.includes('/params/')) {
+        const url = input;
+        const contentLength = response.headers.get('Content-Length');
+
+        if (contentLength) {
+          const totalBytes = parseInt(contentLength, 10);
+          totalFilesToDownload += 1;
+          totalBytesToDownload += totalBytes;
+
+          // Store request info
+          const requestInfo = {
+            url: url,
+            totalBytes: totalBytes,
+            bytesReceived: 0,
+            status: response.status,
+          };
+          networkRequests.push(requestInfo);
+
+          const reader = response.body.getReader();
+          let bytesReceived = 0;
+
+          const stream = new ReadableStream({
+            start(controller) {
+              function push() {
+                reader.read().then(({ done, value }) => {
+                  if (done) {
+                    controller.close();
+                    return;
+                  }
+                  bytesReceived += value.byteLength;
+                  totalBytesDownloaded += value.byteLength;
+                  requestInfo.bytesReceived = bytesReceived;
+
+                  // Update progress
+                  updateLoadingProgress();
+                  updateNetworkData();
+
+                  controller.enqueue(value);
+                  push();
+                }).catch(error => {
+                  console.error('Error reading stream', error);
+                  controller.error(error);
+                });
+              }
+              push();
+            }
+          });
+
+          return new Response(stream, {
+            headers: response.headers
+          });
+        }
+      }
+      return response;
+    };
+
+    // Function to update loading progress
+    function updateLoadingProgress() {
+      const elapsedTime = ((Date.now() - modelLoadStartTime) / 1000).toFixed(0);
+
+      const progressPercentage = ((totalBytesDownloaded / totalBytesToDownload) * 100).toFixed(2);
+      const fetchedSizeMB = (totalBytesDownloaded / (1024 * 1024)).toFixed(1);
+      const totalSizeMB = (totalBytesToDownload / (1024 * 1024)).toFixed(1);
+
+      loadingDiv.textContent = `Fetching model files: ${fetchedSizeMB}MB / ${totalSizeMB}MB fetched. ${progressPercentage}% completed, ${elapsedTime} secs elapsed. It can take a while when we first visit this page to populate the cache. Later refreshes will become faster.`;
+    }
+
+    // Function to update network data display
+    function updateNetworkData() {
+      networkDataDiv.innerHTML = '';
+      networkRequests.forEach((req, index) => {
+        const progressPercentage = ((req.bytesReceived / req.totalBytes) * 100).toFixed(2);
+        const bytesReceivedMB = (req.bytesReceived / (1024 * 1024)).toFixed(2);
+        const totalBytesMB = (req.totalBytes / (1024 * 1024)).toFixed(2);
+        const fileName = req.url.split('/').pop();
+
+        const requestInfo = `
+          <div>
+            <strong>Request ${index + 1}:</strong> ${fileName}<br>
+            Status: ${req.status}, Progress: ${bytesReceivedMB}MB / ${totalBytesMB}MB (${progressPercentage}%)
+          </div>
+        `;
+        networkDataDiv.innerHTML += requestInfo;
+      });
+    }
+
+    // Function to display a message in the chat
+    function addMessage(role, content) {
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('message', role);
+
+      const messageContent = document.createElement('div');
+      messageContent.classList.add('message-content');
+      messageContent.textContent = content;
+
+      messageDiv.appendChild(messageContent);
+      messagesDiv.appendChild(messageDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Initialize the engine and load the model
+    async function initializeEngine() {
+      loadingDiv.textContent = "Initializing the engine and loading the model...";
+      modelLoadStartTime = Date.now();
+
+      try {
+        engine = await CreateMLCEngine(selectedModel);
+        loadingDiv.textContent = "";
+        errorLogDiv.style.display = "none"; // Hide error log if successful
+        addMessage('assistant', 'Hello! How can I assist you today?');
+        conversation.push({ role: "assistant", content: 'Hello! How can I assist you today?' });
+      } catch (error) {
+        console.error("Error during engine initialization:", error);
+        errorLogDiv.textContent = `Error loading model: ${error.message}`; // Display the error message
+        errorLogDiv.style.display = "block"; // Show the error log
+        loadingDiv.textContent = "Error loading model.";
+      }
+    }
+
+    // Handle form submission
+    inputForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const userText = userInput.value.trim();
+      if (!userText) return;
+
+      // Add user's message to the chat
+      addMessage('user', userText);
+      conversation.push({ role: "user", content: userText });
+      userInput.value = '';
+      loadingDiv.textContent = "Assistant is typing...";
+
+      try {
+        // Get assistant's reply
+        const reply = await engine.chat.completions.create({
+          messages: conversation,
+          max_tokens: 200,
+          temperature: 0.7,
+        });
+
+        const assistantMessage = reply.choices[0].message.content.trim();
+        // Add assistant's message to the chat
+        addMessage('assistant', assistantMessage);
+        conversation.push({ role: "assistant", content: assistantMessage });
+        loadingDiv.textContent = "";
+      } catch (error) {
+        console.error("Error during chat completion:", error);
+        loadingDiv.textContent = "Error during chat.";
+      }
+    });
+
+    // Start the engine
+    initializeEngine();
+
+    // Initialize Particle.js with updated background
+    particlesJS("particles-js", {
+      "particles": {
+        "number": {
+          "value": 60,
+          "density": {
+            "enable": true,
+            "value_area": 800
+          }
+        },
+        "color": {
+          "value": "#ffffff"
+        },
+        "shape": {
+          "type": "circle",
+        },
+        "opacity": {
+          "value": 0.5,
+        },
+        "size": {
+          "value": 3,
+          "random": true,
+        },
+        "line_linked": {
+          "enable": true,
+          "distance": 150,
+          "color": "#ffffff",
+          "opacity": 0.4,
+          "width": 1
+        },
+        "move": {
+          "enable": true,
+          "speed": 2,
+          "direction": "none",
+          "random": false,
+          "straight": false,
+          "out_mode": "out",
+        }
+      },
+      "interactivity": {
+        "detect_on": "canvas",
+        "events": {
+          "onhover": {
+            "enable": true,
+            "mode": "repulse"
+          },
+        },
+        "modes": {
+          "repulse": {
+            "distance": 100,
+            "duration": 0.4
+          },
+        }
+      },
+      "retina_detect": true
+    });
+  </script>
+</body>
+</html>
