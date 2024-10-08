@@ -32,4 +32,4 @@ The application uses the MLC engine to execute the language model efficiently wi
 
 #### Clone the Repository
 ```bash
-[git clone https://github.com/nullpwn/webllm-chatbot.git](https://github.com/nullpwn/MLC-Chat.git)
+git clone https://github.com/nullpwn/webllm-chatbot.git](https://github.com/nullpwn/MLC-Chat.git
