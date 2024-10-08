@@ -28,16 +28,14 @@ The application uses the MLC engine to execute the language model efficiently wi
 - A modern web browser with WebGPU support (e.g., the latest version of Chrome, Edge, or Firefox Nightly).
 - An active internet connection for initial model loading.
 
-### Installation
-
-#### Clone the Repository
-
-### Navigate to the Project Directory
-
-Open chat.html in Your Web Browser
-Simply open the index.html file in a supported web browser.
-
 ### Usage
+
+- Clone the Repository
+
+- Navigate to the Project Directory
+
+ Open the chat.html file in a supported web browser.
+
 - Start Chatting: Once the page loads and the model initializes, you can start typing your messages in the input field at the bottom of the chat interface.
 - Wait for Model Initialization: The first time you run the application, it may take a few minutes to load the model files. Progress is displayed in the loading indicator.
 
