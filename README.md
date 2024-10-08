@@ -31,5 +31,17 @@ The application uses the MLC engine to execute the language model efficiently wi
 ### Installation
 
 #### Clone the Repository
-```bash
-git clone https://github.com/nullpwn/MLC-Chat.git
+
+### Navigate to the Project Directory
+
+Open chat.html in Your Web Browser
+Simply open the index.html file in a supported web browser.
+
+### Usage
+- Start Chatting: Once the page loads and the model initializes, you can start typing your messages in the input field at the bottom of the chat interface.
+- Wait for Model Initialization: The first time you run the application, it may take a few minutes to load the model files. Progress is displayed in the loading indicator.
+
+
+## Further Details
+
+For more information and advanced configurations, please refer to the [WebLLM GitHub repository](https://github.com/mlc-ai/web-llm).
